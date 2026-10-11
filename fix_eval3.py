@@ -1,0 +1,6 @@
+with open('backend/features/teach/student_agent/llm_client.py', 'r', encoding='utf-8') as f: code = f.read()
+code = code.replace('"other" in exp_low):', '"other" in exp_low)):')
+code = code.replace('"other" in t_low):', '"other" in t_low)):')
+code = code.replace('("releases the blood" in exp_low or ("release" in exp_low and "blood" in exp_low and length <= 6):', '("releases the blood" in exp_low or ("release" in exp_low and "blood" in exp_low and length <= 6)):')
+code = code.replace('("releases the blood" in t_low or ("release" in t_low and "blood" in t_low and length <= 6):', '("releases the blood" in t_low or ("release" in t_low and "blood" in t_low and length <= 6)):')
+with open('backend/features/teach/student_agent/llm_client.py', 'w', encoding='utf-8') as f: f.write(code)

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protégé | AI Student Teaching Platform (Feynman Technique)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Navbar -->
+    <!-- Mobbin Navbar -->
+    <header class="app-header mobbin-header">
+      <div class="brand" style="display: flex; align-items: center; gap: 12px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-main);"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <h1 class="brand-title" style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">Protégé</h1>
+      </div>
+      
+      <div class="mobbin-search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search flows, screens, or features...">
+      </div>
+
+      <div class="header-actions" style="display: flex; gap: 16px; align-items: center;">
+        <div class="badge-mode" id="llmModeBadge" style="background: var(--bg-card); border-color: var(--border);">
+          <span class="status-dot"></span>
+          <span id="llmModeText">Connecting...</span>
+        </div>
+        <button id="resetSessionBtn" class="btn btn-secondary btn-sm" style="display: none; background: var(--bg-card); color: var(--text-main); border-color: var(--border);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          New
+        </button>
+        <button id="themeToggleBtn" style="width: 36px; height: 36px; border-radius: 50%; background: var(--bg-card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main);">
+          <svg id="themeIconLight" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg id="themeIconDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content" style="padding: 0;">
+      
+      <!-- LANDING SCREEN (Mobbin Grid) -->
+      <section id="landingScreen" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; height: 100%;">
+        
+        <!-- Progress Tracker Dashboard -->
+        <div id="dashboardReportsSection" class="dashboard-container" style="padding: 16px 32px; border-bottom: 1px solid var(--border);">
+          <h3 style="margin-bottom: 12px; font-size: 16px; font-weight: 700; color: var(--text-main);">Your Learning Progress</h3>
+          <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+            
+            <!-- Teacher vs Hint Distribution (Pie Chart) -->
+            <div class="dashboard-card" style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              <h4 style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; text-align: center;">Study Modes Used</h4>
+              <div style="position: relative; height: 120px;">
+                <canvas id="modesPieChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Mastery Scores (Bar Chart) -->
+            <div class="dashboard-card" style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              <h4 style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; text-align: center;">Teacher Mode Mastery</h4>
+              <div style="position: relative; height: 120px;">
+                <canvas id="scoresBarChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Streaks / Highlights -->
+            <div class="dashboard-card" style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+              <div style="font-size: 36px; font-weight: 800; color: var(--text-main); line-height: 1;" id="streakDays">-</div>
+              <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">Day Streak</div>
+              <div style="font-size: 20px; font-weight: 800; color: var(--primary); line-height: 1;" id="totalSessions">-</div>
+              <div style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Sessions Completed</div>
+            </div>
+          </div>
+        </div>
+
+          <!-- Sub Navbar (Mobbin Filters) -->
+        <div id="mobbinFilters" class="mobbin-nav">
+          <div class="mobbin-pill active" data-filter="all">All Features</div>
+          <div class="mobbin-pill" data-filter="study">Study Modes</div>
+          <div class="mobbin-pill" data-filter="productivity">Productivity</div>
+          <div class="mobbin-pill" data-filter="assessments">Assessments</div>
+          <div class="mobbin-pill" data-filter="reports">Reports</div>
+        </div>
+
+        <!-- Section: Core Learning -->
+        <div id="sectionCoreLearning">
+          <h3 style="margin: 32px 32px 0; font-size: 20px; font-weight: 700; color: var(--text-main);">Core Learning</h3>
+          <div class="mobbin-grid">
+            <!-- Teacher Mode Card -->
+            <div class="mobbin-card" id="btnTeacherMode" data-category="study assessments">
+              <div class="mobbin-card-img" style="background: var(--bg-surface);">
+                <div class="mobbin-card-badge">Assessment</div>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-main)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              </div>
+              <div class="mobbin-card-info">
+                <h4>Teacher Mode</h4>
+                <p>Test mastery by explaining to an AI student.</p>
+              </div>
+            </div>
+
+            <!-- Hint by Hint Card -->
+            <div class="mobbin-card" id="btnHintMode" data-category="study">
+              <div class="mobbin-card-img" style="background: var(--bg-surface);">
+                <div class="mobbin-card-badge">Socratic</div>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-main)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.2 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+              </div>
+              <div class="mobbin-card-info">
+                <h4>Hint by Hint</h4>
+                <p>Get progressive hints without the answer.</p>
+              </div>
+            </div>
+            
+            <!-- Materials Library Card -->
+            <div class="mobbin-card" id="btnMaterialsMode" data-category="study">
+              <div class="mobbin-card-img" style="background: var(--bg-surface);">
+                <div class="mobbin-card-badge">Library</div>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-main)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+              </div>
+              <div class="mobbin-card-info">
+                <h4>Materials</h4>
+                <p>Upload and manage study resources.</p>
+              </div>
+            </div>
+            
+            <!-- Assessment Card -->
+            <div class="mobbin-card" id="btnAssessmentMode" data-category="assessments">
+              <div class="mobbin-card-img" style="background: var(--bg-surface);">
+                <div class="mobbin-card-badge">Evaluate</div>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-main)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              </div>
+              <div class="mobbin-card-info">
+                <h4>Knowledge Check</h4>
+                <p>Test your understanding of the materials.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Productivity & Planning -->
+        <div id="sectionProductivity">
+          <h3 style="margin: 16px 32px 0; font-size: 20px; font-weight: 700; color: var(--text-main);">Productivity & Planning</h3>
+          <div class="mobbin-grid">
+            <!-- Pomodoro Timer Card -->
+            <div class="mobbin-card" id="btnPomodoroMode" data-category="productivity">
+              <div class="mobbin-card-img" style="background: var(--bg-surface);">
+                <div class="mobbin-card-badge">Productivity</div>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-main)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div class="mobbin-card-info">
+                <h4>Pomodoro Timer</h4>
+                <p>Stay focused with timed study sessions.</p>
+              </div>
+            </div>
+
+            <!-- To Do List Card -->
+            <div class="mobbin-card" id="btnTodoListMode" data-category="productivity">
+              <div class="mobbin-card-img" style="background: var(--bg-surface);">
+                <div class="mobbin-card-badge">Planning</div>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-main)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;">
+                  <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+              </div>
+              <div class="mobbin-card-info">
+                <h4>To Do List</h4>
+                <p>Manage your tasks and study goals.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Reports Details (Shown on Reports filter) -->
+        <div id="sectionReportsDetails" style="display: none; padding: 24px 32px 40px;">
+          <h3 style="margin-bottom: 16px; font-size: 20px; font-weight: 700; color: var(--text-main);">Performance Insights & Analytics</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 24px;">
+            <div class="card" style="background: var(--bg-surface); padding: 20px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              <h4 style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Study Mastery Rate</h4>
+              <div style="font-size: 28px; font-weight: 800; color: var(--primary); margin-bottom: 4px;">88%</div>
+              <p style="font-size: 13px; color: var(--text-muted); margin: 0;">High concept retention across Socratic and Teacher interactions.</p>
+            </div>
+            <div class="card" style="background: var(--bg-surface); padding: 20px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              <h4 style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Active Curriculum</h4>
+              <div style="font-size: 28px; font-weight: 800; color: var(--text-main); margin-bottom: 4px;">4 Concepts</div>
+              <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Mastered: Binary Search, Linear Search, Time Complexity.</p>
+            </div>
+            <div class="card" style="background: var(--bg-surface); padding: 20px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              <h4 style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Recommended Next Step</h4>
+              <div style="font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Knowledge Check</div>
+              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Take a quick assessment on your recent study topics.</p>
+              <button id="btnJumpToAssessmentFromReports" class="btn btn-primary btn-sm">Take Exam Now</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HINT BY HINT SCREEN -->
+      <!-- MATERIALS SCREEN -->
+      <section id="materialsScreen" class="setup-container" style="display: none;">
+        <button id="btnBackFromMaterials" class="btn btn-secondary btn-sm" style="margin-bottom: 20px;">&larr; Back to Modes</button>
+        <div class="setup-hero">
+          <span class="hero-pill">📚 Library</span>
+          <h2>Your Study Materials</h2>
+          <p>Upload and manage documents to use in Teacher Mode or Hint by Hint.</p>
+        </div>
+        
+        <div class="setup-card">
+          <div class="setup-section">
+            <h3>Upload New Material</h3>
+            <div class="drop-zone" id="materialsDropZone">
+              <div class="drop-zone-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="12" y2="12"/><line x1="15" y1="15" x2="12" y2="12"/></svg>
+              </div>
+              <p class="drop-text">Drag & drop your <strong>PDF</strong>, <strong>TXT</strong>, or <strong>MD</strong> here</p>
+              <span class="drop-or">or</span>
+              <div class="drop-actions">
+                <label class="btn btn-secondary btn-sm" for="materialsFileInput">Browse Files</label>
+                <input type="file" id="materialsFileInput" accept=".pdf,.md,.txt" style="display:none;">
+              </div>
+            </div>
+            <div id="materialsUploadStatus" style="margin-top: 10px; color: var(--primary);"></div>
+          </div>
+          
+          <div class="setup-section">
+            <h3>Available Materials</h3>
+            <div id="materialsList" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="hintScreen" class="setup-container" style="display: none;">
+        <button id="btnBackFromHint" class="btn btn-secondary btn-sm" style="margin-bottom: 20px;">&larr; Back to Modes</button>
+        <div class="setup-hero">
+          <span class="hero-pill">🧩 Hint by Hint</span>
+          <h2>Progressive Problem Solving</h2>
+          <p>Enter a concept or problem you're stuck on, and we'll guide you step-by-step.</p>
+        </div>
+        <div class="setup-card">
+          <div class="setup-section">
+            <div class="form-group">
+              <label class="form-label">Select Reference Material (Optional)</label>
+              <select id="hintMaterialSelect" class="topic-text-input" style="width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
+                <option value="">-- No Reference Material --</option>
+              </select>
+              <label class="form-label">What are you working on?</label>
+              <input type="text" id="hintConceptInput" class="topic-text-input" placeholder="e.g., Dynamic Programming, Binary Search..." style="width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);" />
+              <button id="startHintSessionBtn" class="btn btn-primary btn-block">Start Session</button>
+            </div>
+            
+            <div id="hintInteractionArea" style="display: none; margin-top: 30px;">
+              <div id="hintDisplay" style="padding: 20px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 20px; font-size: 1.1rem; line-height: 1.5;"></div>
+              
+              <div id="hintInputArea" style="display: flex; gap: 10px;">
+                <input type="text" id="hintUserInput" class="topic-text-input" placeholder="Your thoughts or answer..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);" />
+                <button id="getHintBtn" class="btn btn-primary">Submit / Next Hint</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 1 & 2: SETUP SCREEN -->
+      <section id="setupScreen" class="setup-container" style="display: none;">
+        <button id="btnBackFromTeacher" class="btn btn-secondary btn-sm" style="margin-bottom: 20px;">&larr; Back to Modes</button>
+        <div class="setup-hero">
+          <span class="hero-pill">💡 Teach to Master</span>
+          <h2>The best way to understand anything is to explain it to someone else.</h2>
+          <p>Upload your study notes OR type any topic directly without a file. Alex, your AI student, will research the subject, prepare a custom curriculum, and ask you targeted questions so you can test your mastery.</p>
+        </div>
+
+        <div class="setup-card">
+          <!-- Step 1: Document Upload or Topic Selection -->
+          <div class="setup-section">
+            <div class="section-label">
+              <span class="step-num">1</span>
+              <div>
+                <h3>Select Study Material or Topic</h3>
+                <p>Upload a document OR type/choose any topic for the AI student to research</p>
+              </div>
+            </div>
+
+            <!-- Mode Switcher Tabs -->
+            <div class="mode-tabs">
+              <button type="button" class="mode-tab-btn active" id="tabDocMode">📄 Upload Document</button>
+              <button type="button" class="mode-tab-btn" id="tabTopicMode">🧠 Choose or Type Topic</button>
+              <button type="button" class="mode-tab-btn" id="tabLibraryMode">📚 From Library</button>
+            </div>
+
+            <!-- Tab 1: File Drop Zone -->
+            <div class="tab-pane active" id="paneDocMode">
+              <div class="drop-zone" id="dropZone">
+                <div class="drop-zone-icon">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="12" y2="12"/><line x1="15" y1="15" x2="12" y2="12"/></svg>
+                </div>
+                <p class="drop-text">Drag & drop your <strong>PDF</strong>, <strong>TXT</strong>, or <strong>MD</strong> here</p>
+                <span class="drop-or">or</span>
+                <div class="drop-actions">
+                  <label class="btn btn-secondary btn-sm" for="fileInput">Browse Files</label>
+                  <input type="file" id="fileInput" accept=".pdf,.md,.txt" style="display:none;">
+                  <button type="button" id="useSampleBtn" class="btn btn-outline btn-sm">Use Built-in Sample (Transformers)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Topic Search & Suggestions -->
+            <div class="tab-pane" id="paneTopicMode" style="display: none;">
+              <div class="topic-search-box">
+                <div class="topic-input-group">
+                  <input type="text" id="topicInput" class="topic-text-input" placeholder="Enter any topic (e.g. Photosynthesis, Quantum Computing, Black Holes)..." />
+                  <button type="button" id="researchTopicBtn" class="btn btn-primary">
+                    Research Topic 🔍
+                  </button>
+                </div>
+                <div class="topic-suggestions">
+                  <span class="suggestions-label">Popular topics:</span>
+                  <button type="button" class="topic-chip-btn" data-topic="Photosynthesis">🌿 Photosynthesis</button>
+                  <button type="button" class="topic-chip-btn" data-topic="Quantum Computing">⚛️ Quantum Computing</button>
+                  <button type="button" class="topic-chip-btn" data-topic="Black Holes">🕳️ Black Holes</button>
+                  <button type="button" class="topic-chip-btn" data-topic="Neural Networks">🧠 Neural Networks</button>
+                  <button type="button" class="topic-chip-btn" data-topic="World War II">🌍 World War II</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 3: Materials Library -->
+            <div class="tab-pane" id="paneLibraryMode" style="display: none;">
+              <div class="topic-search-box">
+                <label class="form-label">Select from your uploaded materials:</label>
+                <select id="teacherMaterialSelect" class="topic-text-input" style="width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
+                  <option value="">-- No Materials Found --</option>
+                </select>
+                <button type="button" id="useLibraryBtn" class="btn btn-primary btn-block">
+                  Load Material
+                </button>
+              </div>
+            </div>
+
+            <!-- Uploaded file summary card -->
+            <div id="fileSummaryCard" class="file-summary-card" style="display: none;">
+              <div class="file-info-header">
+                <div class="file-name-group">
+                  <span class="file-icon">📄</span>
+                  <div>
+                    <h4 id="summaryFileName">document.pdf</h4>
+                    <span id="summaryWordCount" class="meta-tag">0 words</span>
+                  </div>
+                </div>
+                <button id="changeFileBtn" class="btn-text">Change</button>
+              </div>
+              <div class="topics-preview">
+                <label>Extracted Curriculum Topics:</label>
+                <div id="topicsTags" class="tags-container"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Session Configuration -->
+          <div id="configSection" class="setup-section" style="opacity: 0.5; pointer-events: none;">
+            <div class="section-label">
+              <span class="step-num">2</span>
+              <div>
+                <h3>Configure Study Session</h3>
+                <p>Choose question count and choose your student's learning persona</p>
+              </div>
+            </div>
+
+            <!-- Number of questions selector -->
+            <div class="form-group">
+              <label class="form-label">How many questions would you like to be asked?</label>
+              <div class="pill-selector" id="questionCountPills">
+                <button type="button" class="pill-btn" data-count="3">
+                  <span class="pill-title">3 Questions</span>
+                  <span class="pill-sub">Quick Sprint</span>
+                </button>
+                <button type="button" class="pill-btn active" data-count="5">
+                  <span class="pill-badge">Recommended</span>
+                  <span class="pill-title">5 Questions</span>
+                  <span class="pill-sub">Standard Series</span>
+                </button>
+                <button type="button" class="pill-btn" data-count="7">
+                  <span class="pill-title">7 Questions</span>
+                  <span class="pill-sub">Deep Dive</span>
+                </button>
+                <button type="button" class="pill-btn custom-pill" id="customCountBtn">
+                  <span class="pill-title">Custom</span>
+                  <input type="number" id="customCountInput" min="1" max="20" placeholder="#" style="display:none;">
+                </button>
+              </div>
+            </div>
+
+            <!-- Persona Selector -->
+            <div class="form-group">
+              <label class="form-label">Student Persona</label>
+              <div class="persona-grid">
+                <div class="persona-card active" data-persona="novice">
+                  <div class="persona-avatar">Alex 🧑‍🎓</div>
+                  <div class="persona-details">
+                    <h4>Alex (Curious Novice)</h4>
+                    <p>Enthusiastic beginner who loves intuitive analogies, simple language, and practical mental models.</p>
+                  </div>
+                </div>
+                <div class="persona-card" data-persona="peer">
+                  <div class="persona-avatar">Jordan 🔬</div>
+                  <div class="persona-details">
+                    <h4>Jordan (Analytical Peer)</h4>
+                    <p>Inquisitive learner looking for scientific precision, mechanics, and edge case reasoning.</p>
+                  </div>
+                </div>
+                <div class="persona-card" data-persona="pragmatic">
+                  <div class="persona-avatar">Sam 🛠️</div>
+                  <div class="persona-details">
+                    <h4>Sam (Hands-on Learner)</h4>
+                    <p>Practical learner who wants real-world use cases, applications, and everyday examples.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Launch Button -->
+            <button id="startSessionBtn" class="btn btn-primary btn-lg btn-block" disabled>
+              Begin Teaching Session 🚀
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3: CLASSROOM CHAT INTERFACE -->
+      <section id="chatScreen" class="classroom-container" style="display: none;">
+        <!-- Left Sidebar: Curriculum & Live Progress -->
+        <aside class="classroom-sidebar">
+          <div class="sidebar-header">
+            <div class="student-profile">
+              <div class="student-avatar-big" id="sidebarStudentAvatar">🧑‍🎓</div>
+              <div>
+                <h3 id="sidebarStudentName">Alex (Curious Novice)</h3>
+                <span class="student-state-pill" id="studentStateBadge">Curious Novice</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="progress-card">
+            <div class="progress-meta">
+              <span class="progress-label">Study Progression</span>
+              <span class="progress-val" id="progressCounter">Question 1 of 5</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="progressBarFill" style="width: 20%;"></div>
+            </div>
+          </div>
+
+          <div class="curriculum-container">
+            <h4>Study Series Curriculum</h4>
+            <div class="curriculum-list" id="curriculumList">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="sidebar-footer">
+            <div class="quick-commands">
+              <button id="btnViewReport" class="btn btn-outline btn-sm btn-block">
+                📊 View Report So Far
+              </button>
+              <button id="btnConcludeEarly" class="btn btn-secondary btn-sm btn-block">
+                🏁 Conclude Early & Report
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Right / Center Area: Chatbox Conversation -->
+        <div class="classroom-chat">
+          <div class="chat-header">
+            <div class="chat-topic-banner">
+              <span class="topic-indicator">CURRENT TOPIC</span>
+              <h3 id="currentTopicTitle">Loading topic...</h3>
+            </div>
+            <div class="chat-header-actions">
+              <button id="btnRetestQuick" class="btn-icon" title="Restart Session (/retest)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Messages stream -->
+          <div class="chat-messages" id="chatMessages">
+            <!-- Messages added here -->
+          </div>
+
+          <!-- Quick Suggestion Chips -->
+          <div class="chat-chips-bar">
+            <span class="chips-label">Quick suggestions:</span>
+            <button type="button" class="chip-btn" data-text="idk">"I'm not sure / idk"</button>
+            <button type="button" class="chip-btn" data-text="Could you clarify what you mean by that?">"Could you clarify?"</button>
+            <button type="button" class="chip-btn" data-text="/done">Finish session</button>
+          </div>
+
+          <!-- Input bar -->
+          <form id="chatForm" class="chat-input-bar">
+            <textarea id="userInput" placeholder="Explain this to your student Alex in your own words... (Enter to send, Shift+Enter for new line)" rows="1"></textarea>
+            <button type="submit" id="sendBtn" class="btn btn-primary btn-send" disabled>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- STEP 4: FINAL REPORT MODAL -->
+      <div id="reportModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div>
+              <h2>🎓 Teaching Performance Report</h2>
+              <p>Protege Feynman Active Learning Assessment</p>
+            </div>
+            <button id="closeReportModal" class="btn-close">&times;</button>
+          </div>
+
+          <div class="modal-body" id="modalReportContent">
+            <!-- Dynamically populated performance report -->
+          </div>
+
+          <div class="modal-footer">
+            <button id="modalRetestBtn" class="btn btn-primary">
+              🔄 Retest & Try Again
+            </button>
+            <button id="modalCopyBtn" class="btn btn-secondary">
+              📋 Copy Markdown Report
+            </button>
+            <button id="modalNewDocBtn" class="btn btn-outline">
+              📚 Teach New Document
+            </button>
+          </div>
+        </div>
+      </div>
+
+        <!-- POMODORO SCREEN -->
+      <section id="pomodoroScreen" class="setup-container" style="display: none;">
+        <button id="btnBackFromPomodoro" class="btn btn-secondary btn-sm" style="margin-bottom: 20px;">&larr; Back to Modes</button>
+        <div class="setup-hero">
+          <span class="hero-pill">Focus</span>
+          <h2 class="hero-title">Pomodoro Timer</h2>
+          <p class="hero-subtitle">Stay focused with timed study sessions.</p>
+        </div>
+        <div class="card" style="text-align: center; max-width: 400px; margin: 0 auto; padding: 40px;">
+          <div id="pomodoroDisplay" style="font-size: 64px; font-weight: 800; color: var(--text-main); margin-bottom: 24px;">25:00</div>
+          <div style="display: flex; gap: 16px; justify-content: center;">
+            <button id="btnPomodoroStart" class="btn btn-primary">Start</button>
+            <button id="btnPomodoroPause" class="btn btn-secondary">Pause</button>
+            <button id="btnPomodoroReset" class="btn btn-secondary" style="border: 1px solid var(--border);">Reset</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TO DO LIST SCREEN -->
+      <section id="todoListScreen" class="setup-container" style="display: none;">
+        <button id="btnBackFromTodo" class="btn btn-secondary btn-sm" style="margin-bottom: 20px;">&larr; Back to Modes</button>
+        <div class="setup-hero">
+          <span class="hero-pill">Planning</span>
+          <h2 class="hero-title">To Do List</h2>
+          <p class="hero-subtitle">Manage your tasks and study goals.</p>
+        </div>
+        <div class="card" style="max-width: 600px; margin: 0 auto;">
+          <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+            <input type="text" id="todoInput" class="topic-text-input" placeholder="Add a new task..." style="flex: 1;" />
+            <button id="btnTodoAdd" class="btn btn-primary">Add</button>
+          </div>
+          <ul id="todoList" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px;">
+            <!-- Todos will go here -->
+          </ul>
+        </div>
+      </section>
+
+      <!-- Assessment Screen -->
+      <section id="assessmentScreen" class="setup-container" style="display: none;">
+        <button id="btnBackFromAssessment" class="btn btn-secondary btn-sm" style="margin-bottom: 20px;">&larr; Back to Modes</button>
+        <div class="setup-hero">
+          <span class="hero-pill">📚 Knowledge Check</span>
+          <h2>Evaluate Your Learning</h2>
+          <p>Generate an exam based on a previous study session, or take a quick assessment.</p>
+        </div>
+        
+        <div class="card" style="max-width: 600px; margin: 0 auto;" id="assessmentStartCard">
+          <label class="input-label" style="display:block; margin-bottom: 8px;">Option A: Enter a Topic</label>
+          <input type="text" id="assessmentTopicInput" class="topic-text-input" placeholder="e.g. Photosynthesis, Binary Search..." style="width: 100%; margin-bottom: 16px;" />
+          
+          <div style="text-align: center; font-weight: bold; margin-bottom: 16px; color: var(--text-muted);">OR</div>
+
+          <label class="input-label" style="display:block; margin-bottom: 8px;">Option B: Select from Library</label>
+          <select id="assessmentLibrarySelect" class="topic-text-input" style="width: 100%; margin-bottom: 24px;">
+            <option value="">-- Select Material --</option>
+          </select>
+          
+          <label class="input-label" style="display:block; margin-bottom: 8px;">Number of Questions</label>
+          <input type="number" id="assessmentNumQuestions" class="topic-text-input" value="3" min="1" max="10" style="width: 100%; margin-bottom: 24px;" />
+
+          <button id="btnStartAssessment" class="btn btn-primary" style="width: 100%;">Generate Exam</button>
+        </div>
+
+        <div class="card" style="max-width: 800px; margin: 0 auto; display: none;" id="assessmentQuestionsCard">
+          <div id="assessmentQuestionsList"></div>
+          <button id="btnSubmitAssessment" class="btn btn-primary" style="width: 100%; margin-top: 24px;">Submit Answers</button>
+        </div>
+
+        <div class="card" style="max-width: 800px; margin: 0 auto; display: none;" id="assessmentResultCard">
+          <h3>Assessment Results</h3>
+          <div id="assessmentScoreDisplay" style="margin-top: 16px;"></div>
+        </div>
+      </section>
+
+  </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
