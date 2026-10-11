@@ -40,7 +40,7 @@ try:
 except Exception as e:
     print(f"Database initialization note: {e}")
 
-app = FastAPI(title="Protégé Platform")
+app = FastAPI(title="Protégé Platform", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,6 +49,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def vercel_routing_middleware(request: Request, call_next):
+    # Recover original requested path if Vercel altered it during proxying or rewrites
+    path = request.scope.get("path", "")
+    orig_path = (
+        request.headers.get("x-matched-path")
+        or request.headers.get("x-invoke-path")
+        or request.headers.get("x-forwarded-uri")
+    )
+    if orig_path and path in ("/api/index.py", "/api/index", "/api", "/api/"):
+        request.scope["path"] = orig_path.split("?")[0]
+    elif path.startswith("/api/index.py/"):
+        request.scope["path"] = path[len("/api/index.py"):]
+    elif path.startswith("/api/index/"):
+        request.scope["path"] = path[len("/api/index"):]
+    
+    return await call_next(request)
 
 # In-memory session store (scoped to lambda instance)
 sessions: Dict[str, Any] = {}
@@ -100,6 +118,9 @@ def _ensure_material_file(db: Session, material_id: Any) -> Optional[Path]:
 # -----------------
 @app.get("/status")
 @app.get("/api/status")
+@app.get("/api/index.py")
+@app.get("/api")
+@app.get("/api/")
 def get_status():
     return {
         "status": "ok",
@@ -107,6 +128,19 @@ def get_status():
         "active_llm_mode": get_active_llm_mode(),
         "database": "Neon PostgreSQL" if is_postgres else "SQLite",
     }
+
+
+@app.post("/api/index.py")
+@app.post("/api")
+@app.post("/api/")
+async def api_index_post(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    if "topic" in data:
+        return await research_topic_endpoint(request)
+    return JSONResponse({"status": "ok", "message": "Protege API endpoint"})
 
 
 @app.get("/metrics")
@@ -558,5 +592,16 @@ def grade_exam_route(req: ExamGradeRequest):
 
 
 # Mount static frontend files for all other routes
-if FRONTEND_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+static_dir = None
+for candidate in [
+    FRONTEND_DIR,
+    ROOT_DIR / "public",
+    Path.cwd() / "frontend",
+    Path.cwd() / "public",
+]:
+    if candidate.exists() and (candidate / "index.html").exists():
+        static_dir = candidate
+        break
+
+if static_dir:
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")

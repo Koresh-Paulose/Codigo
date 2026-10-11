@@ -67,16 +67,32 @@ class LLMClient:
             api_key=self.gemini_api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
-        completion = client.chat.completions.create(
-            model=self.gemini_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=temperature,
-            max_tokens=1024,
-        )
-        return completion.choices[0].message.content
+        models_to_try = [self.gemini_model]
+        for alt in ["gemini-3.5-flash-lite", "gemini-3.8-flash"]:
+            if alt not in models_to_try:
+                models_to_try.append(alt)
+        
+        last_err = None
+        for m in models_to_try:
+            try:
+                completion = client.chat.completions.create(
+                    model=m,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=temperature,
+                    max_tokens=1024,
+                )
+                self.gemini_model = m
+                return completion.choices[0].message.content
+            except Exception as e:
+                last_err = e
+                err_str = str(e).lower()
+                if "404" in err_str or "not found" in err_str or "no longer available" in err_str or "429" in err_str or "quota" in err_str:
+                    continue
+                raise e
+        raise last_err or RuntimeError("Gemini call failed")
 
     def _call_OPENAI(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
         from openai import OpenAI

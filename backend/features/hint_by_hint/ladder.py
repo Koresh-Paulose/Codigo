@@ -19,7 +19,7 @@ else:
     load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
@@ -38,22 +38,37 @@ SYSTEM_PROMPT = (
 
 
 def _call_gemini(prompt: str) -> str:
-    """Try Gemini API."""
+    """Try Gemini API with fallback models."""
     from openai import OpenAI
     client = OpenAI(
         api_key=GEMINI_API_KEY,
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
     )
-    response = client.chat.completions.create(
-        model=GEMINI_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.7,
-        max_tokens=300,
-    )
-    return response.choices[0].message.content.strip()
+    models_to_try = [GEMINI_MODEL]
+    for alt in ["gemini-3.5-flash-lite", "gemini-3.8-flash"]:
+        if alt not in models_to_try:
+            models_to_try.append(alt)
+    
+    last_err = None
+    for m in models_to_try:
+        try:
+            response = client.chat.completions.create(
+                model=m,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=300,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            last_err = e
+            err_str = str(e).lower()
+            if "404" in err_str or "not found" in err_str or "no longer available" in err_str or "429" in err_str or "quota" in err_str:
+                continue
+            raise e
+    raise last_err or RuntimeError("Gemini hint call failed")
 
 
 def _call_openai(prompt: str) -> str:
