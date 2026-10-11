@@ -141,21 +141,22 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/materials');
       if (res.ok) {
-        const materials = await res.json();
+        const raw = await res.json();
+        const materials = Array.isArray(raw) ? raw : (raw.materials || []);
         
         if(materialsList) {
             materialsList.innerHTML = materials.length ? '' : '<em>No materials uploaded yet.</em>';
             materials.forEach(m => {
               const div = document.createElement('div');
               div.style = 'padding: 10px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px;';
-              div.innerHTML = `<strong>${m.title}</strong> (${m.words} words) - ${m.type}`;
+              div.innerHTML = `<strong>${m.title || m.file_name}</strong> (${m.words || m.word_count} words) - ${m.type || m.file_type}`;
               materialsList.appendChild(div);
             });
         }
 
         let optionsHtml = '<option value="">-- No Material Selected --</option>';
         materials.forEach(m => {
-          optionsHtml += `<option value="${m.id}">${m.title}</option>`;
+          optionsHtml += `<option value="${m.id}">${m.title || m.file_name}</option>`;
         });
         if(teacherMaterialSelect) teacherMaterialSelect.innerHTML = optionsHtml;
         if(hintMaterialSelect) hintMaterialSelect.innerHTML = optionsHtml;
@@ -195,6 +196,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function uploadMaterial(file) {
+    if (file.size > 4.5 * 1024 * 1024) {
+      alert(`File is ${(file.size / (1024*1024)).toFixed(1)} MB. Vercel limit is 4.5 MB. Please select a smaller file.`);
+      return;
+    }
     materialsUploadStatus.textContent = 'Uploading...';
     const formData = new FormData();
     formData.append('file', file);
@@ -203,15 +208,18 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         body: formData
       });
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (_) {}
+
       if (res.ok) {
         materialsUploadStatus.textContent = 'Uploaded successfully!';
         loadMaterials();
       } else {
-        const data = await res.json();
-        materialsUploadStatus.textContent = 'Upload failed: ' + (data.error || 'Unknown error');
+        materialsUploadStatus.textContent = 'Upload failed: ' + (data.error || data.detail || text || 'Unknown error');
       }
     } catch (e) {
-      materialsUploadStatus.textContent = 'Upload failed: Network error';
+      materialsUploadStatus.textContent = 'Upload failed: ' + (e.message || 'Network error');
     }
   }
 
@@ -371,7 +379,10 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: hintSessionId, concept_id: conceptId, user_last_answer: userAns, material_id: document.getElementById("hintMaterialSelect") ? document.getElementById("hintMaterialSelect").value : "" })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (_) {}
+
       if (res.ok) {
         if (data.level === 99) {
           hintDisplay.innerHTML += `<br/><br/><strong style="color:green;">Correct!</strong> ${data.hint}`;
@@ -381,13 +392,14 @@ document.addEventListener('DOMContentLoaded', () => {
           hintDisplay.innerHTML += `<br/><br/><strong>Hint (Level ${data.level}):</strong> ${data.hint}`;
         }
       } else {
-        const errorMsg = data.hint || data.error;
+        const errorMsg = data.hint || data.error || data.detail || text || 'Error retrieving hint';
         alert(errorMsg);
         hintDisplay.innerHTML += `<br/><br/><span style="color:red;">Error: ${errorMsg}</span>`;
       }
     } catch (e) {
-      alert("Network Error");
-      hintDisplay.innerHTML += `<br/><br/><span style="color:red;">Network Error</span>`;
+      const msg = e.message || "Network Error";
+      alert(msg);
+      hintDisplay.innerHTML += `<br/><br/><span style="color:red;">${msg}</span>`;
     }
   }
 
@@ -505,11 +517,14 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: topic }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to research topic');
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (_) {}
+
+      if (!res.ok) throw new Error(data.error || data.detail || text || 'Failed to research topic');
       onDocumentLoaded(data);
     } catch (err) {
-      alert('Error researching topic: ' + err.message);
+      alert('Error researching topic: ' + (err.message || 'Unknown error'));
     } finally {
       setLoadingState(false);
     }
@@ -547,11 +562,14 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ use_sample: true }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load sample');
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (_) {}
+
+      if (!res.ok) throw new Error(data.error || data.detail || text || 'Failed to load sample');
       onDocumentLoaded(data);
     } catch (err) {
-      alert('Error loading sample: ' + err.message);
+      alert('Error loading sample: ' + (err.message || 'Unknown error'));
     } finally {
       setLoadingState(false);
     }
@@ -574,32 +592,35 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function handleFileUpload(file) {
+    if (file.size > 4.5 * 1024 * 1024) {
+      alert(`File is ${(file.size / (1024*1024)).toFixed(1)} MB. Vercel limit is 4.5 MB. Please select a smaller file.`);
+      return;
+    }
     setLoadingState(true, `Reading ${file.name}...`);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            file_name: file.name,
-            file_data_base64: e.target.result,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Upload failed');
-        onDocumentLoaded(data);
-      } catch (err) {
-        alert('Failed to process document: ' + err.message);
-      } finally {
-        setLoadingState(false);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+    .then(async (res) => {
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (_) {}
+
+      if (!res.ok) {
+        if (res.status === 413) throw new Error('File payload too large (exceeds Vercel 4.5 MB limit).');
+        throw new Error(data.error || data.detail || text || 'Upload failed');
       }
-    };
-    reader.onerror = () => {
+      onDocumentLoaded(data);
+    })
+    .catch((err) => {
+      alert('Failed to process document: ' + (err.message || 'Unknown error'));
+    })
+    .finally(() => {
       setLoadingState(false);
-      alert('Failed to read file from disk.');
-    };
-    reader.readAsDataURL(file);
+    });
   }
 
   function onDocumentLoaded(data) {
@@ -1332,12 +1353,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // Load materials into the select dropdown
       try {
         const res = await fetch('/api/materials');
-        const data = await res.json();
+        const raw = await res.json();
+        const materials = Array.isArray(raw) ? raw : (raw.materials || []);
         assessmentLibrarySelect.innerHTML = '<option value="">-- Select Material --</option>';
-        (data.materials || []).forEach(m => {
+        materials.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m.id;
-          opt.textContent = m.file_name;
+          opt.textContent = m.file_name || m.title;
           assessmentLibrarySelect.appendChild(opt);
         });
       } catch (e) {
@@ -1372,10 +1394,12 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ topic, material_id, num_questions: numQ })
         });
-        const data = await res.json();
+        const text = await res.text();
+        let data = {};
+        try { data = JSON.parse(text); } catch (_) {}
         
-        if (data.error) {
-          alert("Error: " + data.error);
+        if (!res.ok || data.error) {
+          alert("Error: " + (data.error || data.detail || text || "Failed to generate exam"));
         } else if (data.questions) {
           currentExamId = data.exam_id;
           currentExamQuestions = data.questions;
@@ -1395,7 +1419,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
       } catch (e) {
-        alert("Failed to start exam: " + e);
+        alert("Failed to start exam: " + (e.message || e));
       } finally {
         btnStartAssessment.disabled = false;
         btnStartAssessment.textContent = "Generate Exam";
@@ -1419,10 +1443,12 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ exam_id: currentExamId, answers })
         });
-        const data = await res.json();
+        const text = await res.text();
+        let data = {};
+        try { data = JSON.parse(text); } catch (_) {}
         
-        if (data.error) {
-          alert("Error: " + data.error);
+        if (!res.ok || data.error) {
+          alert("Error: " + (data.error || data.detail || text || "Failed to grade exam"));
         } else if (data.results) {
           assessmentQuestionsCard.style.display = 'none';
           assessmentResultCard.style.display = 'block';

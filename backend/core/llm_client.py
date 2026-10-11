@@ -10,15 +10,36 @@ load_dotenv(BASE_DIR / ".env")
 
 try:
     import config
+    GEMINI_API_KEY = getattr(config, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL = getattr(config, "GEMINI_MODEL", None) or os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
     OPENAI_API_KEY = getattr(config, "OPENAI_API_KEY", None) or os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL = getattr(config, "OPENAI_MODEL", None) or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     GROQ_API_KEY = getattr(config, "GROQ_API_KEY", None) or os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL = getattr(config, "GROQ_MODEL", None) or os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+    GROQ_MODEL = getattr(config, "GROQ_MODEL", None) or os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 except ImportError:
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+def _call_gemini(prompt: str, json_mode: bool = False) -> str:
+    if not GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY not set")
+    client = OpenAI(
+        api_key=GEMINI_API_KEY,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
+    kwargs = {
+        "model": GEMINI_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2
+    }
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    response = client.chat.completions.create(**kwargs)
+    return response.choices[0].message.content.strip()
 
 def _call_openai(prompt: str, json_mode: bool = False) -> str:
     if not OPENAI_API_KEY:
@@ -51,6 +72,14 @@ def _call_groq(prompt: str, json_mode: bool = False) -> str:
 def _call_llm(prompt: str, json_mode: bool = False) -> str:
     errors = []
 
+    if GEMINI_API_KEY:
+        try:
+            res = _call_gemini(prompt, json_mode=json_mode)
+            if res:
+                return res
+        except Exception as e:
+            errors.append(f"Gemini: {e}")
+
     if OPENAI_API_KEY:
         try:
             res = _call_openai(prompt, json_mode=json_mode)
@@ -67,7 +96,7 @@ def _call_llm(prompt: str, json_mode: bool = False) -> str:
         except Exception as e:
             errors.append(f"Groq: {e}")
 
-    raise RuntimeError("All LLM providers failed -> " + " | ".join(errors))
+    raise RuntimeError("All LLM providers failed -> " + (" | ".join(errors) if errors else "No LLM API keys configured (set GEMINI_API_KEY, GROQ_API_KEY, or OPENAI_API_KEY in environment variables)."))
 
 def ask(prompt: str) -> str:
     return _call_llm(prompt, json_mode=False)

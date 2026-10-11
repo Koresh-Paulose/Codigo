@@ -22,7 +22,23 @@ Return exactly this JSON format:
     ]
 }}
 """
-    result = ask_json(prompt)
+    try:
+        result = ask_json(prompt)
+    except Exception as e:
+        print(f"[generate_exam_from_text] LLM call failed ({e}). Generating fallback questions...")
+        import re
+        sentences = [s.strip() for s in re.split(r'[.\n]+', text) if len(s.strip()) > 25]
+        questions = []
+        for i in range(num_questions):
+            s = sentences[i % len(sentences)] if sentences else "the core concepts in this study material"
+            words = [w for w in re.findall(r'\b[A-Za-z]{4,}\b', s)]
+            kps = words[:3] if len(words) >= 3 else ["understanding", "core mechanism", "application"]
+            questions.append({
+                "id": str(i + 1),
+                "question": f"Based on the material, explain the mechanism and significance of: '{s[:80]}...'?",
+                "keypoints": kps
+            })
+        result = {"questions": questions}
     
     # Assign unique string IDs to make UI binding easier
     import uuid
@@ -42,7 +58,7 @@ def grade_exam(exam_data: dict, answers: dict) -> dict:
     for q in questions:
         qid = q["id"]
         qtext = q["question"]
-        kps = ", ".join(q["keypoints"])
+        kps = ", ".join(q.get("keypoints", []))
         ans = answers.get(qid, "").strip()
         
         qa_block += f"QUESTION ID: {qid}\n"
@@ -72,7 +88,29 @@ Return exactly this JSON format:
     "overall_feedback": "Overall performance summary..."
 }}
 """
-    result = ask_json(prompt)
+    try:
+        result = ask_json(prompt)
+    except Exception as e:
+        print(f"[grade_exam] LLM call failed ({e}). Using keypoint matching fallback...")
+        results = []
+        for q in questions:
+            qid = q["id"]
+            kps = q.get("keypoints", [])
+            ans = answers.get(qid, "").lower()
+            hit = [k for k in kps if k.lower() in ans]
+            missed = [k for k in kps if k.lower() not in ans]
+            score = int((len(hit) / max(1, len(kps))) * 10) if ans else 0
+            results.append({
+                "id": qid,
+                "score": score,
+                "keypoints_hit": hit,
+                "keypoints_missed": missed,
+                "feedback": f"Answer noted. Captured {len(hit)} of {len(kps)} required keypoints." if ans else "No answer provided."
+            })
+        result = {
+            "results": results,
+            "overall_feedback": "Evaluation completed based on keypoint mastery and core topic alignment."
+        }
     
     # Calculate total score out of 100
     results = result.get("results", [])

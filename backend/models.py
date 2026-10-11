@@ -10,6 +10,7 @@ class Material(Base):
     title = Column(String, nullable=False)
     file_type = Column(String)
     file_path = Column(String)
+    content = Column(Text, nullable=True)
     word_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     chunks = relationship("Chunk", cascade="all, delete-orphan", back_populates="material",

@@ -18,10 +18,12 @@ for env_path in env_paths:
 else:
     load_dotenv()
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
 
 # In-memory session store
 _hint_db = {}
@@ -33,6 +35,25 @@ SYSTEM_PROMPT = (
     "Never be generic. Always reference the actual topic. "
     "Respond with ONLY the hint text, no prefixes like 'Hint:' or 'Level:'."
 )
+
+
+def _call_gemini(prompt: str) -> str:
+    """Try Gemini API."""
+    from openai import OpenAI
+    client = OpenAI(
+        api_key=GEMINI_API_KEY,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
+    response = client.chat.completions.create(
+        model=GEMINI_MODEL,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.7,
+        max_tokens=300,
+    )
+    return response.choices[0].message.content.strip()
 
 
 def _call_openai(prompt: str) -> str:
@@ -67,11 +88,21 @@ def _call_groq(prompt: str) -> str:
     return response.choices[0].message.content.strip()
 
 
-def llm_call(prompt: str) -> tuple[str, str]:
-    """Try OpenAI -> Groq. Returns (hint_text, error_message)"""
+def llm_call(prompt: str, concept: str = "", level: int = 1) -> tuple[str, str]:
+    """Try Gemini -> OpenAI -> Groq -> Pedagogical Fallback. Returns (hint_text, error_message)"""
     errs = []
-    
-    # 1. Try OpenAI
+
+    # 1. Try Gemini
+    if GEMINI_API_KEY:
+        try:
+            result = _call_gemini(prompt)
+            if result:
+                return result, ""
+        except Exception as e:
+            errs.append(f"Gemini: {e}")
+            print(f"[hint_ladder] Gemini failed: {e}")
+
+    # 2. Try OpenAI
     if OPENAI_API_KEY:
         try:
             result = _call_openai(prompt)
@@ -81,7 +112,7 @@ def llm_call(prompt: str) -> tuple[str, str]:
             errs.append(f"OpenAI: {e}")
             print(f"[hint_ladder] OpenAI failed: {e}")
 
-    # 2. Try Groq
+    # 3. Try Groq
     if GROQ_API_KEY:
         try:
             result = _call_groq(prompt)
@@ -93,8 +124,16 @@ def llm_call(prompt: str) -> tuple[str, str]:
             errs.append(f"Groq: {e}")
             print(f"[hint_ladder] Groq failed: {e}")
 
-    # 3. Basic fallback
-    return "", " | ".join(errs)
+    # 4. Built-in contextual fallback so user is never blocked
+    clean_concept = concept.strip() if concept else "this concept"
+    fallback_hints = {
+        1: f"Think about the core definition of {clean_concept}. What is the very first step or fundamental principle behind it?",
+        2: f"Break {clean_concept} down into its key components. What inputs or primary mechanisms are at play?",
+        3: f"Consider how each part of {clean_concept} connects together. Can you explain what happens next in the sequence?",
+        4: f"Here is the key insight for {clean_concept}: Focus on how the underlying mechanism functions from start to finish, and how it achieves its goal."
+    }
+    fallback = fallback_hints.get(level, f"Reflect on how {clean_concept} works in practice.")
+    return fallback, " | ".join(errs)
 
 
 def get_next_hint(session_id: str, concept_id: str, source_chunk: str = "", user_last_answer: str = "") -> dict:
@@ -109,7 +148,7 @@ def get_next_hint(session_id: str, concept_id: str, source_chunk: str = "", user
         source_chunk = source_chunk[:10000] # Safe 10k limit
 
     prompt = get_hint_prompt(next_level, concept_id, source_chunk, user_last_answer)
-    hint_text, err_msg = llm_call(prompt)
+    hint_text, err_msg = llm_call(prompt, concept=concept_id, level=next_level)
 
     is_correct = False
     if hint_text and hint_text.strip().startswith("[CORRECT]"):

@@ -22,3 +22,5 @@ Thumbs.db
 uploads/
 
 .vercel
+.neon
+.env.local

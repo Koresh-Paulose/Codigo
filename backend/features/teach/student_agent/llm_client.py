@@ -3,18 +3,22 @@ import json
 import re
 import random
 from typing import Optional, Dict, Any, List
-from .config import OPENAI_API_KEY, OPENAI_MODEL, GROQ_API_KEY, GROQ_MODEL
+from .config import GEMINI_API_KEY, GEMINI_MODEL, OPENAI_API_KEY, OPENAI_MODEL, GROQ_API_KEY, GROQ_MODEL
 
 class LLMClient:
-    """Multi-tier LLM Client with OPENAI (Primary) -> Groq (Fallback) -> Smart Dynamic Simulation."""
+    """Multi-tier LLM Client with Gemini -> OpenAI -> Groq -> Smart Dynamic Simulation."""
 
     def __init__(
         self,
+        gemini_api_key: Optional[str] = None,
+        gemini_model: Optional[str] = None,
         OPENAI_api_key: Optional[str] = None,
         OPENAI_model: Optional[str] = None,
         groq_api_key: Optional[str] = None,
         groq_model: Optional[str] = None,
     ):
+        self.gemini_api_key = gemini_api_key or GEMINI_API_KEY
+        self.gemini_model = gemini_model or GEMINI_MODEL
         self.OPENAI_api_key = OPENAI_api_key or OPENAI_API_KEY
         self.OPENAI_model = OPENAI_model or OPENAI_MODEL
         self.groq_api_key = groq_api_key or GROQ_API_KEY
@@ -22,8 +26,18 @@ class LLMClient:
         self.last_provider_used: str = "None"
 
     def generate(self, system_prompt: str, user_prompt: str, temperature: float = 0.7) -> str:
-        """Attempts OPENAI -> Groq -> Simulated response."""
-        # 1. Try OPENAI
+        """Attempts Gemini -> OpenAI -> Groq -> Simulated response."""
+        # 1. Try Gemini
+        if self.gemini_api_key:
+            try:
+                response = self._call_gemini(system_prompt, user_prompt, temperature)
+                if response and response.strip():
+                    self.last_provider_used = f"Gemini ({self.gemini_model})"
+                    return response.strip()
+            except Exception as e:
+                print(f"\n[Warning] Gemini request failed ({e}). Attempting OpenAI fallback...")
+
+        # 2. Try OPENAI
         if self.OPENAI_api_key:
             try:
                 response = self._call_OPENAI(system_prompt, user_prompt, temperature)
@@ -33,7 +47,7 @@ class LLMClient:
             except Exception as e:
                 print(f"\n[Warning] OPENAI request failed ({e}). Attempting Groq fallback...")
 
-        # 2. Try Groq Fallback
+        # 3. Try Groq Fallback
         if self.groq_api_key:
             try:
                 response = self._call_groq(system_prompt, user_prompt, temperature)
@@ -43,9 +57,26 @@ class LLMClient:
             except Exception as e:
                 print(f"\n[Warning] Groq request failed ({e}). Falling back to simulation...")
 
-        # 3. Smart Dynamic Simulation Fallback
+        # 4. Smart Dynamic Simulation Fallback
         self.last_provider_used = "Simulated AI Student (Local Dynamic Engine)"
         return self._generate_simulated_response(system_prompt, user_prompt)
+
+    def _call_gemini(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=self.gemini_api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
+        completion = client.chat.completions.create(
+            model=self.gemini_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=temperature,
+            max_tokens=1024,
+        )
+        return completion.choices[0].message.content
 
     def _call_OPENAI(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
         from openai import OpenAI
